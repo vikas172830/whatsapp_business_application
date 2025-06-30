@@ -1,8 +1,15 @@
-import { Column, DataType, Model } from 'sequelize-typescript';
+import { Column, DataType, Model, PrimaryKey } from 'sequelize-typescript';
 import { Table } from 'sequelize-typescript';
 
 @Table({})
 export class whatsapp_accounts extends Model {
+  @PrimaryKey
+  @Column({
+    type: DataType.INTEGER,
+    allowNull: false,
+  })
+  declare id: number;
+
   @Column({
     type: DataType.STRING,
     allowNull: false,

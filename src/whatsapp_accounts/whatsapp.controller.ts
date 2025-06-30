@@ -8,6 +8,8 @@ import {
   ParseIntPipe,
   Param,
   Query,
+  HttpStatus,
+  HttpException,
 } from '@nestjs/common';
 import { WhatsappService } from './whatsapp.service';
 import { Request, Response } from 'express';
@@ -15,6 +17,8 @@ import { InjectModel } from '@nestjs/sequelize';
 import { User } from 'src/user/user.model';
 import axios from 'axios';
 import { PhoneDto } from './dto/phone_details.dto';
+import { SendTemplateMessageDto } from './dto/sentTamplateMessage.dto';
+import { SendTextMsgDto } from './dto/sendTextMsg.dto';
 
 @Controller('whatsapp')
 export class WhatsappController {
@@ -25,7 +29,6 @@ export class WhatsappController {
 
   @Post('facebook')
   async accept_code(@Body('code') code: string, @Req() req: Request) {
-    console.log('req: ', req);
     return await this.whatsappService.accept_code(code, req);
   }
 
@@ -74,7 +77,7 @@ export class WhatsappController {
   }
 
   @Get('get_all_phone_details')
-  async getAllPhoneDetails(@Query() query: PhoneDto, @Res() res: Response) {
+  async get_all_phone_details(@Query() query: PhoneDto, @Res() res: Response) {
     const { id } = query;
     if (!id) {
       return res.status(400).json({ error: 'Missing id in query parameters' });
@@ -93,7 +96,7 @@ export class WhatsappController {
       });
     }
     try {
-      const data = await this.whatsappService.getAllPhoneDetails({
+      const data = await this.whatsappService.get_all_phone_details({
         waba_id: auth_details.waba_id,
         business_token: auth_details.access_token,
       });
@@ -106,8 +109,75 @@ export class WhatsappController {
     }
   }
 
-  @Get(':id')
-  getAuthDetails(@Param('id', ParseIntPipe) id: number) {
-    return this.whatsappService.getAuthDetails(id);
+  @Post('send_template_message/:id')
+  async send_template_message(
+    @Param('id') id: number,
+    @Body() body: SendTemplateMessageDto,
+    @Res() res: Response,
+    @Req() req: Request,
+  ) {
+    try {
+      const result = await this.whatsappService.send_template_message(
+        body,
+        id,
+        req,
+      );
+      return res.status(HttpStatus.OK).json({
+        success: true,
+        message_id: result.message_id,
+        message: 'Template message sent successfully',
+      });
+    } catch (error) {
+      return res.status(400).json({
+        error: error.message,
+        message: 'Failed to send WhatsApp template message',
+        details: error.response?.data || error.stack,
+      });
+    }
   }
+
+  @Get('get_all_templates')
+  async get_all_templates(@Query('id') id: number, @Res() res: Response) {
+    if (!id) {
+      return res.status(400).json({ error: 'Missing id in query parameters' });
+    }
+    try {
+      const data = await this.whatsappService.get_all_templates(Number(id));
+      return res.json({ success: true, data });
+    } catch (error) {
+      return res.status(400).json({
+        error: 'Failed to fetch WhatsApp templates',
+        details: error?.response?.data || error?.message,
+      });
+    }
+  }
+
+
+  @Post('send_text_message/:id')
+  async send_text_message(
+    @Param('id') id: number,
+    @Body() body: SendTextMsgDto,
+    @Res() res: Response,
+    @Req() req: Request,
+  ) {
+    if(!id){
+      return res.status(400).json({ error: 'id is missing in query' });
+    }
+    try{
+      const data = await this.whatsappService.send_text_message(body, id, req);
+      return res.status(HttpStatus.OK).json({
+        success: true,
+        message_id: data.message_id,
+        message: 'Text message sent successfully',
+      });
+    }catch(error){
+      return res.status(400).json({
+        error:error.message,
+        message: 'Failed to send WhatsApp text message',
+        details: error.response?.data || error.stack,
+      })
+    }
+  }
+
+
 }
